@@ -1,0 +1,40 @@
+{
+  "id": "/",
+  "name": "Заметки с календарём",
+  "short_name": "Заметки",
+  "description": "Заметки с календарём: задачи, дедлайны и важность по дням.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0c0a18",
+  "theme_color": "#0c0a18",
+  "lang": "ru",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "IMG_9955.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "IMG_9956.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "IMG_9957.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "IMG_9958.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

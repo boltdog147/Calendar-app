@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Заметки с календарём</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0c0a18">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Заметки">
+<link rel="icon" href="IMG_9955.png">
+<link rel="apple-touch-icon" href="IMG_9955.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg-deep: #0c0a18;
+    --glass: rgba(255, 255, 255, 0.055);
+    --glass-strong: rgba(255, 255, 255, 0.09);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-border-strong: rgba(255, 255, 255, 0.16);
+
+    --text: #f3f1fb;
+    --text-soft: #b6b0d6;
+    --text-faint: #736c96;
+
+    --violet: #8b5cf6;
+    --violet-2: #6d28d9;
+    --pink: #ec4899;
+    --cyan: #22d3ee;
+
+    --grad-primary: linear-gradient(135deg, #8b5cf6, #ec4899);
+    --grad-urgent: linear-gradient(135deg, #fb7185, #f43f5e);
+    --grad-high: linear-gradient(135deg, #fbbf24, #f97316);
+    --grad-mid: linear-gradient(135deg, #a78bfa, #7c3aed);
+    --grad-low: linear-gradient(135deg, #34d399, #10b981);
+
+    --shadow-glow: 0 8px 32px rgba(139, 92, 246, 0.18);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg-deep);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+  }
+
+  body {
+    min-height: 100vh;
+    padding: 44px 20px 80px;
+    display: flex;
+    justify-content: center;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Aurora mesh background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse 700px 500px at 12% -5%, rgba(139, 92, 246, 0.35), transparent 60%),
+      radial-gradient(ellipse 600px 480px at 100% 10%, rgba(236, 72, 153, 0.25), transparent 60%),
+      radial-gradient(ellipse 620px 500px at 90% 85%, rgba(34, 211, 238, 0.16), transparent 60%),
+      radial-gradient(ellipse 700px 600px at 0% 90%, rgba(124, 58, 237, 0.2), transparent 60%);
+    pointer-events: none;
+  }
+
+  main {
+    width: 100%;
+    max-width: 640px;
+    position: relative;
+    z-index: 1;
+  }
+
+  header {
+    margin-bottom: 30px;
+  }
+
+  h1 {
+    font-family: 'Sora', sans-serif;
+    font-size: clamp(27px, 5vw, 34px);
+    font-weight: 800;
+    margin: 0 0 12px;
+    line-height: 1.2;
+    background: linear-gradient(135deg, #ffffff, #c9c0f5);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .subtitle {
+    color: var(--text-soft);
+    font-size: 14.5px;
+    line-height: 1.6;
+    max-width: 54ch;
+  }
+
+  /* ---- Glass card base ---- */
+  .highlights-card, .due-card, .cal-card, .notes-panel {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 22px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .highlights-card, .due-card {
+    padding: 20px 20px 8px;
+    margin-bottom: 16px;
+  }
+
+  .highlights-title, .due-title {
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .highlights-title { color: #fbbf24; }
+  .due-title { color: #fb7185; }
+
+  .highlights-title .count, .due-title .count {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    color: #0c0a18;
+    padding: 2px 9px;
+    border-radius: 20px;
+  }
+  .highlights-title .count { background: linear-gradient(135deg, #fde68a, #fbbf24); }
+  .due-title .count { background: linear-gradient(135deg, #fda4af, #fb7185); }
+
+  .highlight-item, .due-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 8px;
+    margin: 0 -8px 4px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .highlight-item:hover, .due-item:hover { background: var(--glass-strong); }
+
+  .highlight-priority {
+    flex-shrink: 0;
+    font-family: 'Sora', sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    color: white;
+    background: var(--grad-high);
+    border-radius: 7px;
+    padding: 3px 8px;
+    min-width: 22px;
+    text-align: center;
+  }
+
+  .highlight-text, .due-text {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .highlight-date {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-faint);
+  }
+
+  .due-when {
+    flex-shrink: 0;
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+    font-size: 10.5px;
+    color: white;
+    background: var(--grad-urgent);
+    border-radius: 7px;
+    padding: 3px 9px;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .due-priority {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--text-faint);
+    font-weight: 500;
+  }
+
+  /* ---- Calendar ---- */
+  .cal-card {
+    padding: 22px 20px 18px;
+    margin-bottom: 16px;
+  }
+
+  .cal-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+
+  .cal-month-label {
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    text-transform: capitalize;
+    color: var(--text);
+  }
+
+  .cal-nav-btn {
+    background: var(--glass-strong);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    color: var(--text-soft);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .cal-nav-btn:hover { background: var(--grad-primary); color: white; border-color: transparent; }
+
+  .cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 6px;
+  }
+  .cal-weekdays span {
+    text-align: center;
+    font-size: 11.5px;
+    color: var(--text-faint);
+    font-weight: 600;
+  }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+
+  .cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.12s ease, transform 0.1s ease, border-color 0.12s ease;
+  }
+
+  .cal-day.other-month { color: var(--text-faint); opacity: 0.35; }
+
+  .cal-day:hover { background: var(--glass-strong); }
+  .cal-day:active { transform: scale(0.94); }
+
+  .cal-day.is-today {
+    border-color: var(--glass-border-strong);
+    color: #c9c0f5;
+    font-weight: 800;
+  }
+
+  .cal-day.is-selected {
+    background: var(--grad-primary);
+    color: white;
+    box-shadow: var(--shadow-glow);
+  }
+  .cal-day.is-selected:hover { background: var(--grad-primary); }
+
+  .cal-day .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #fbbf24;
+    margin-top: 2px;
+  }
+  .cal-day.is-selected .dot, .cal-day.is-today .dot { background: currentColor; }
+
+  /* ---- Notes panel ---- */
+  .notes-panel {
+    padding: 22px 20px;
+  }
+
+  .notes-panel-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .notes-date-label {
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--text);
+  }
+
+  .notes-count {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-faint);
+  }
+
+  .note-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 12px;
+    margin: 0 0 8px;
+    border-radius: 14px;
+    background: var(--glass-strong);
+    border: 1px solid var(--glass-border);
+    border-left: 3px solid transparent;
+    position: relative;
+  }
+
+  .note-item.pr-urgent { border-left: 3px solid #fb7185; }
+  .note-item.pr-high { border-left: 3px solid #fbbf24; }
+  .note-item.pr-mid { border-left: 3px solid #a78bfa; }
+  .note-item.pr-low { border-left: 3px solid #34d399; }
+
+  .note-checkbox {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    border: 1.5px solid var(--glass-border-strong);
+    background: rgba(255,255,255,0.04);
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 1px;
+    position: relative;
+    appearance: none;
+    transition: background 0.12s ease, border-color 0.12s ease;
+  }
+  .note-checkbox:checked {
+    background: var(--grad-primary);
+    border-color: transparent;
+  }
+  .note-checkbox:checked::after {
+    content: '✓';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .note-text {
+    flex: 1;
+    font-size: 14.5px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--text);
+    word-break: break-word;
+    padding-top: 1px;
+  }
+  .note-item.done { background: rgba(255,255,255,0.02); }
+  .note-item.done .note-text {
+    color: var(--text-faint);
+    text-decoration: line-through;
+    font-weight: 400;
+  }
+
+  .note-priority-badge {
+    flex-shrink: 0;
+    font-family: 'Sora', sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    color: white;
+    border-radius: 7px;
+    padding: 2px 7px;
+    margin-top: 1px;
+    min-width: 20px;
+    text-align: center;
+  }
+  .note-priority-badge.pr-urgent { background: var(--grad-urgent); }
+  .note-priority-badge.pr-high { background: var(--grad-high); }
+  .note-priority-badge.pr-mid { background: var(--grad-mid); }
+  .note-priority-badge.pr-low { background: var(--grad-low); }
+
+  .note-delete {
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color 0.12s ease;
+  }
+  .note-delete:hover { color: #fb7185; }
+
+  .empty-notes {
+    font-size: 13.5px;
+    color: var(--text-faint);
+    padding: 8px 0 18px;
+  }
+
+  .add-note-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  #noteInput {
+    flex: 1;
+    min-width: 140px;
+    background: var(--glass-strong);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text);
+  }
+  #noteInput:focus {
+    outline: none;
+    border-color: var(--violet);
+  }
+  #noteInput::placeholder { color: var(--text-faint); }
+
+  .priority-select-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--glass-strong);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 0 4px 0 12px;
+    flex-shrink: 0;
+  }
+
+  .priority-select-wrap label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-faint);
+    white-space: nowrap;
+  }
+
+  #priorityInput {
+    width: 44px;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 14px;
+    color: #c9c0f5;
+    padding: 11px 4px;
+    text-align: center;
+  }
+  #priorityInput:focus { outline: none; }
+
+  #addNoteBtn {
+    background: var(--grad-primary);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 0 22px;
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: filter 0.15s ease, transform 0.1s ease;
+    box-shadow: var(--shadow-glow);
+  }
+  #addNoteBtn:hover { filter: brightness(1.1); }
+  #addNoteBtn:active { transform: scale(0.97); }
+
+  footer {
+    margin-top: 28px;
+    font-size: 12.5px;
+    color: var(--text-faint);
+    line-height: 1.7;
+    border-top: 1px solid var(--glass-border);
+    padding-top: 18px;
+  }
+
+  @media (max-width: 420px) {
+    .cal-day { font-size: 12.5px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Заметки с календарём</h1>
+    <p class="subtitle">Выбирай день и записывай, что нужно сделать — задачи, дедлайны, идеи. Всё сохраняется прямо в этом браузере.</p>
+  </header>
+
+  <div class="due-card" id="dueCard" style="display: none;">
+    <div class="due-title">На сегодня и завтра <span class="count" id="dueCount">0</span></div>
+    <div id="dueList"></div>
+  </div>
+
+  <div class="highlights-card" id="highlightsCard" style="display: none;">
+    <div class="highlights-title">Важные задачи <span class="count" id="highlightsCount">0</span></div>
+    <div id="highlightsList"></div>
+  </div>
+
+  <div class="cal-card">
+    <div class="cal-nav">
+      <button class="cal-nav-btn" id="prevMonth">‹</button>
+      <span class="cal-month-label" id="monthLabel"></span>
+      <button class="cal-nav-btn" id="nextMonth">›</button>
+    </div>
+    <div class="cal-weekdays">
+      <span>пн</span><span>вт</span><span>ср</span><span>чт</span><span>пт</span><span>сб</span><span>вс</span>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+
+  <div class="notes-panel">
+    <div class="notes-panel-header">
+      <span class="notes-date-label" id="selectedDateLabel"></span>
+      <span class="notes-count" id="notesCount"></span>
+    </div>
+    <div id="notesList"></div>
+    <div class="add-note-row">
+      <input type="text" id="noteInput" placeholder="Новая заметка...">
+      <div class="priority-select-wrap">
+        <label for="priorityInput">важность</label>
+        <input type="number" id="priorityInput" min="1" max="10" value="5">
+      </div>
+      <button id="addNoteBtn">Добавить</button>
+    </div>
+  </div>
+
+  <footer>
+    Заметки сохраняются в облаке Telegram и синхронизируются между твоими устройствами.
+  </footer>
+</main>
+
+<script>
+const STORAGE_KEY = 'calendar_notes_v1';
+
+let notesByDate = {}; // { "2026-09-10": [{id, text, done}] }
+let viewYear, viewMonth; // текущий отображаемый месяц (0-indexed month)
+let selectedDate; // "YYYY-MM-DD"
+
+const monthLabel = document.getElementById('monthLabel');
+const calGrid = document.getElementById('calGrid');
+const prevMonthBtn = document.getElementById('prevMonth');
+const nextMonthBtn = document.getElementById('nextMonth');
+const selectedDateLabel = document.getElementById('selectedDateLabel');
+const notesCount = document.getElementById('notesCount');
+const notesList = document.getElementById('notesList');
+const noteInput = document.getElementById('noteInput');
+const addNoteBtn = document.getElementById('addNoteBtn');
+const priorityInput = document.getElementById('priorityInput');
+const highlightsCard = document.getElementById('highlightsCard');
+const highlightsList = document.getElementById('highlightsList');
+const highlightsCount = document.getElementById('highlightsCount');
+const dueCard = document.getElementById('dueCard');
+const dueList = document.getElementById('dueList');
+const dueCount = document.getElementById('dueCount');
+
+const MONTH_NAMES = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+const MONTH_NAMES_GENITIVE = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const WEEKDAY_LONG = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+function priorityClass(priority) {
+  if (priority >= 9) return 'pr-urgent';
+  if (priority >= 7) return 'pr-high';
+  if (priority >= 4) return 'pr-mid';
+  return 'pr-low';
+}
+
+function toISODate(y, m, d) {
+  return `${y}-${pad(m + 1)}-${pad(d)}`;
+}
+
+function todayISO() {
+  const d = new Date();
+  return toISODate(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+const cloudAvailable = !!(tg && tg.CloudStorage);
+
+// Заметки хранятся в Telegram CloudStorage (синхронизация между устройствами пользователя).
+// Ограничение Telegram: значение по ключу до 4096 символов. Для прототипа этого достаточно;
+// если заметок станет много, стоит разбить хранение по датам на отдельные ключи.
+function loadState(callback) {
+  if (cloudAvailable) {
+    tg.CloudStorage.getItem(STORAGE_KEY, (err, value) => {
+      if (!err && value) {
+        try { notesByDate = JSON.parse(value); } catch (e) { console.error('Не удалось разобрать заметки', e); }
+      } else if (err) {
+        console.error('CloudStorage недоступен, пробуем локальное хранилище', err);
+        loadFromLocalStorage();
+      }
+      callback();
+    });
+  } else {
+    loadFromLocalStorage();
+    callback();
+  }
+}
+
+function loadFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) notesByDate = JSON.parse(raw);
+  } catch (e) {
+    console.error('Не удалось загрузить заметки', e);
+  }
+}
+
+function saveState() {
+  const json = JSON.stringify(notesByDate);
+  if (cloudAvailable) {
+    tg.CloudStorage.setItem(STORAGE_KEY, json, (err) => {
+      if (err) console.error('Не удалось сохранить в CloudStorage', err);
+    });
+  }
+  // Локальный кэш на случай открытия вне Telegram (например, для отладки в браузере)
+  try {
+    localStorage.setItem(STORAGE_KEY, json);
+  } catch (e) {
+    console.error('Не удалось сохранить заметки локально', e);
+  }
+}
+
+function renderCalendar() {
+  monthLabel.textContent = `${MONTH_NAMES[viewMonth]} ${viewYear}`;
+  calGrid.innerHTML = '';
+
+  const firstOfMonth = new Date(viewYear, viewMonth, 1);
+  // JS: 0=вс..6=сб. Переводим на пн=0..вс=6
+  let startOffset = firstOfMonth.getDay() - 1;
+  if (startOffset < 0) startOffset = 6;
+
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const daysInPrevMonth = new Date(viewYear, viewMonth, 0).getDate();
+
+  const today = todayISO();
+  const cells = [];
+
+  // Дни предыдущего месяца (для заполнения сетки)
+  for (let i = 0; i < startOffset; i++) {
+    const dayNum = daysInPrevMonth - startOffset + i + 1;
+    const m = viewMonth === 0 ? 11 : viewMonth - 1;
+    const y = viewMonth === 0 ? viewYear - 1 : viewYear;
+    cells.push({ day: dayNum, iso: toISODate(y, m, dayNum), otherMonth: true });
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ day: d, iso: toISODate(viewYear, viewMonth, d), otherMonth: false });
+  }
+
+  // Дозаполняем до полных недель следующим месяцем
+  while (cells.length % 7 !== 0) {
+    const nextDay = cells.length - (startOffset + daysInMonth) + 1;
+    const m = viewMonth === 11 ? 0 : viewMonth + 1;
+    const y = viewMonth === 11 ? viewYear + 1 : viewYear;
+    cells.push({ day: nextDay, iso: toISODate(y, m, nextDay), otherMonth: true });
+  }
+
+  cells.forEach(cell => {
+    const btn = document.createElement('button');
+    btn.className = 'cal-day';
+    if (cell.otherMonth) btn.classList.add('other-month');
+    if (cell.iso === today) btn.classList.add('is-today');
+    if (cell.iso === selectedDate) btn.classList.add('is-selected');
+
+    const numSpan = document.createElement('span');
+    numSpan.textContent = cell.day;
+    btn.appendChild(numSpan);
+
+    const hasNotes = notesByDate[cell.iso] && notesByDate[cell.iso].length > 0;
+    if (hasNotes) {
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      btn.appendChild(dot);
+    }
+
+    btn.addEventListener('click', () => {
+      selectedDate = cell.iso;
+      if (cell.otherMonth) {
+        const d = new Date(cell.iso + 'T00:00:00');
+        viewYear = d.getFullYear();
+        viewMonth = d.getMonth();
+      }
+      renderCalendar();
+      renderNotes();
+    });
+
+    calGrid.appendChild(btn);
+  });
+}
+
+function formatSelectedDateLabel(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  return `${WEEKDAY_LONG[d.getDay()].charAt(0).toUpperCase() + WEEKDAY_LONG[d.getDay()].slice(1)}, ${d.getDate()} ${MONTH_NAMES_GENITIVE[d.getMonth()]}`;
+}
+
+function renderNotes() {
+  selectedDateLabel.textContent = formatSelectedDateLabel(selectedDate);
+  const notes = notesByDate[selectedDate] || [];
+
+  if (notes.length === 0) {
+    notesCount.textContent = '';
+    notesList.innerHTML = '<p class="empty-notes">На этот день пока ничего не записано.</p>';
+    return;
+  }
+
+  const doneCount = notes.filter(n => n.done).length;
+  notesCount.textContent = `${doneCount} из ${notes.length}`;
+
+  // Сортируем по важности (высокая важность выше в списке)
+  const sorted = [...notes].sort((a, b) => (b.priority || 5) - (a.priority || 5));
+
+  notesList.innerHTML = '';
+  sorted.forEach(note => {
+    const priority = note.priority || 5;
+    const pClass = priorityClass(priority);
+
+    const row = document.createElement('div');
+    row.className = 'note-item ' + pClass + (note.done ? ' done' : '');
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'note-checkbox';
+    checkbox.checked = note.done;
+    checkbox.addEventListener('change', () => {
+      note.done = checkbox.checked;
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+      saveState();
+      renderNotes();
+      renderHighlights();
+      renderDueSoon();
+    });
+    row.appendChild(checkbox);
+
+    const text = document.createElement('span');
+    text.className = 'note-text';
+    text.textContent = note.text;
+    row.appendChild(text);
+
+    const priorityBadge = document.createElement('span');
+    priorityBadge.className = 'note-priority-badge ' + pClass;
+    priorityBadge.textContent = priority;
+    row.appendChild(priorityBadge);
+
+    const del = document.createElement('button');
+    del.className = 'note-delete';
+    del.textContent = '×';
+    del.addEventListener('click', () => {
+      if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+      notesByDate[selectedDate] = notesByDate[selectedDate].filter(n => n.id !== note.id);
+      if (notesByDate[selectedDate].length === 0) delete notesByDate[selectedDate];
+      saveState();
+      renderNotes();
+      renderCalendar();
+      renderHighlights();
+      renderDueSoon();
+    });
+    row.appendChild(del);
+
+    notesList.appendChild(row);
+  });
+}
+
+function renderHighlights() {
+  // Собираем все невыполненные заметки с важностью 9-10 по всем датам
+  const highlights = [];
+  Object.keys(notesByDate).forEach(dateIso => {
+    notesByDate[dateIso].forEach(note => {
+      const priority = note.priority || 5;
+      if (priority >= 9 && !note.done) {
+        highlights.push({ ...note, date: dateIso });
+      }
+    });
+  });
+
+  if (highlights.length === 0) {
+    highlightsCard.style.display = 'none';
+    return;
+  }
+
+  // Сортируем по дате (ближайшие сверху), при равной дате — по важности
+  highlights.sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    return b.priority - a.priority;
+  });
+
+  highlightsCard.style.display = 'block';
+  highlightsCount.textContent = highlights.length;
+  highlightsList.innerHTML = '';
+
+  highlights.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'highlight-item';
+
+    const priorityEl = document.createElement('span');
+    priorityEl.className = 'highlight-priority';
+    priorityEl.textContent = item.priority;
+    row.appendChild(priorityEl);
+
+    const textEl = document.createElement('span');
+    textEl.className = 'highlight-text';
+    textEl.textContent = item.text;
+    row.appendChild(textEl);
+
+    const dateEl = document.createElement('span');
+    dateEl.className = 'highlight-date';
+    const d = new Date(item.date + 'T00:00:00');
+    dateEl.textContent = `${d.getDate()} ${MONTH_NAMES_GENITIVE[d.getMonth()]}`;
+    row.appendChild(dateEl);
+
+    row.addEventListener('click', () => {
+      selectedDate = item.date;
+      const d2 = new Date(item.date + 'T00:00:00');
+      viewYear = d2.getFullYear();
+      viewMonth = d2.getMonth();
+      renderCalendar();
+      renderNotes();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    highlightsList.appendChild(row);
+  });
+}
+
+function renderDueSoon() {
+  const today = todayISO();
+  const d = new Date(today + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  const tomorrow = toISODate(d.getFullYear(), d.getMonth(), d.getDate());
+
+  const dueItems = [];
+  [today, tomorrow].forEach(dateIso => {
+    const notes = notesByDate[dateIso] || [];
+    notes.forEach(note => {
+      if (!note.done) dueItems.push({ ...note, date: dateIso });
+    });
+  });
+
+  if (dueItems.length === 0) {
+    dueCard.style.display = 'none';
+    return;
+  }
+
+  // Сегодня выше завтра, внутри дня — по важности
+  dueItems.sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    return (b.priority || 5) - (a.priority || 5);
+  });
+
+  dueCard.style.display = 'block';
+  dueCount.textContent = dueItems.length;
+  dueList.innerHTML = '';
+
+  dueItems.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'due-item';
+
+    const whenEl = document.createElement('span');
+    whenEl.className = 'due-when';
+    whenEl.textContent = item.date === today ? 'сегодня' : 'завтра';
+    row.appendChild(whenEl);
+
+    const textEl = document.createElement('span');
+    textEl.className = 'due-text';
+    textEl.textContent = item.text;
+    row.appendChild(textEl);
+
+    const priorityEl = document.createElement('span');
+    priorityEl.className = 'due-priority';
+    priorityEl.textContent = 'важность ' + (item.priority || 5);
+    row.appendChild(priorityEl);
+
+    row.addEventListener('click', () => {
+      selectedDate = item.date;
+      const d2 = new Date(item.date + 'T00:00:00');
+      viewYear = d2.getFullYear();
+      viewMonth = d2.getMonth();
+      renderCalendar();
+      renderNotes();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    dueList.appendChild(row);
+  });
+}
+
+function addNote() {
+  const text = noteInput.value.trim();
+  if (!text) return;
+
+  let priority = parseInt(priorityInput.value, 10);
+  if (isNaN(priority)) priority = 5;
+  priority = Math.min(10, Math.max(1, priority));
+
+  if (!notesByDate[selectedDate]) notesByDate[selectedDate] = [];
+  notesByDate[selectedDate].push({ id: 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2,7), text, done: false, priority });
+
+  if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+  noteInput.value = '';
+  saveState();
+  renderNotes();
+  renderCalendar();
+  renderHighlights();
+  renderDueSoon();
+}
+
+addNoteBtn.addEventListener('click', addNote);
+noteInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') addNote();
+});
+
+prevMonthBtn.addEventListener('click', () => {
+  viewMonth--;
+  if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+  renderCalendar();
+});
+
+nextMonthBtn.addEventListener('click', () => {
+  viewMonth++;
+  if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+  renderCalendar();
+});
+
+// ---- Инициализация ----
+function initApp() {
+  const now = new Date();
+  viewYear = now.getFullYear();
+  viewMonth = now.getMonth();
+  selectedDate = todayISO();
+  renderCalendar();
+  renderNotes();
+  renderHighlights();
+  renderDueSoon();
+}
+
+if (tg) {
+  tg.ready();
+  tg.expand(); // открыть на всю высоту экрана
+  // Цвет шапки/фона Telegram подгоняем под тёмную тему приложения
+  try {
+    tg.setHeaderColor('#0c0a18');
+    tg.setBackgroundColor('#0c0a18');
+  } catch (e) { /* старые клиенты Telegram могут не поддерживать эти методы */ }
+
+  // Плавно подстраиваем нижний отступ под клавиатуру/интерфейс Telegram
+  const applyViewportPadding = () => {
+    document.body.style.paddingBottom = (tg.isExpanded ? 80 : 40) + 'px';
+  };
+  tg.onEvent('viewportChanged', applyViewportPadding);
+  applyViewportPadding();
+}
+
+loadState(initApp);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch((e) => {
+      console.error('Не удалось зарегистрировать service worker', e);
+    });
+  });
+}
+</script>
+</body>
+</html>
